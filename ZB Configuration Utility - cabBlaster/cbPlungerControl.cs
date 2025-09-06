@@ -55,6 +55,20 @@ namespace Configuration_Utility
             SendBtn.Text = "Save Settings\nto Plunger";
             DisconnectedState();
             UseHSbox.Enabled = false;
+
+            // Populate ComPortBox with available ports and show configured port if set
+            string[] ports = SerialPort.GetPortNames();
+            ComPortBox.Items.Clear();
+            ComPortBox.Items.AddRange(ports);
+            string configuredComPort = Properties.Settings.Default.ComPort;
+            if (!string.IsNullOrEmpty(configuredComPort))
+            {
+                if (!ComPortBox.Items.Contains(configuredComPort))
+                {
+                    ComPortBox.Items.Add(configuredComPort);
+                }
+                ComPortBox.Text = configuredComPort;
+            }
         }
         private void cbPlungerControl_FormClosed(object sender, FormClosedEventArgs e)
         {
@@ -143,10 +157,25 @@ namespace Configuration_Utility
         }
         private void ConnectToController(string CommandCode, string VerificationID)
         {
-            string[] ports = SerialPort.GetPortNames();
-            ComPortBox.Items.AddRange(ports);
+            // No longer populate ComPortBox here
+            string configuredComPort = Properties.Settings.Default.ComPort;
             ComPort.DataReceived += new SerialDataReceivedEventHandler(ComPort_DataReceived);
-            foreach (string sp in SerialPort.GetPortNames())
+            
+            // Check if ComPort is specified in settings
+            string[] portsToTry;
+            
+            if (!string.IsNullOrEmpty(configuredComPort))
+            {
+                // Use only the specified COM port
+                portsToTry = new string[] { configuredComPort };
+            }
+            else
+            {
+                // Use all available ports (original behavior)
+                portsToTry = SerialPort.GetPortNames();
+            }
+            
+            foreach (string sp in portsToTry)
             {
                 try
                 {
@@ -168,7 +197,7 @@ namespace Configuration_Utility
                             {
                                 DataIn = DataIn.Trim();
                                 string[] reply = DataIn.Split(',');
-                                if ( reply [0] == VerificationID)
+                                if ( reply.Length > 1 && reply [0] == VerificationID)
                                 {
                                     PlungeName.Text = reply[0];
                                     PlungerRev.Text = reply[1];
